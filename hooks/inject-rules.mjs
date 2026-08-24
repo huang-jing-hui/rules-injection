@@ -14,14 +14,6 @@ import {
   rule_xml,
 } from './lib.mjs';
 
-function xml_escape(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 try {
   const input = await read_stdin_json();
   const file_path = input?.tool_input?.file_path;
@@ -44,7 +36,7 @@ try {
   );
 
   const body = fresh.map(rule_xml).join('\n\n');
-  const context = `<rules-injection trigger="${xml_escape(input.tool_name || 'PreToolUse')}" file="${xml_escape(file_path)}">
+  const context = `<rules-injection>
 The following rules apply to this file (matched via paths globs). Follow them when working on it.
 
 ${body}

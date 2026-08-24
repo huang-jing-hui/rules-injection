@@ -6,7 +6,7 @@
       "name": "rules-injection",
       "source": "./",
       "description": "从 ~/.zcode/rules 注入个人规则：会话开始注入全局规则，Read/Write/Edit 时按 paths glob 注入匹配规则",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

@@ -205,12 +205,11 @@ function xml_escape(s) {
 
 /**
  * 单条规则的 XML 包裹格式（全文注入）。
- * 地址同时放在 source 属性和正文首行的 [Source: …]——部分客户端渲染上下文时会
- * 隐藏 XML 标签/属性，正文里的可见行保证规则出处始终可见。
+ * 规则路径只放正文首行、不放 XML 属性——部分客户端渲染上下文时会隐藏标签属性，
+ * 正文里的可见行保证规则出处始终可见。
  */
 export function rule_xml(rule) {
-  const src = xml_escape(rule.source);
-  return `<rule name="${xml_escape(rule.name)}" source="${src}">\n[Source: ${src}]\n\n${rule.content}\n</rule>`;
+  return `<rule name="${xml_escape(rule.name)}">\n[Source: ${xml_escape(rule.source)}]\n\n${rule.content}\n</rule>`;
 }
 
 /**

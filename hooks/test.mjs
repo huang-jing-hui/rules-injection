@@ -46,6 +46,7 @@ check('session-start 注入 8 条全局规则', c?.event === 'SessionStart' && c
 check('session-start 含重要性声明', c?.text.includes('MUST follow them throughout this session'));
 check('session-start 前言含规则目录绝对路径', c?.text.includes(RULES_DIR));
 check('session-start 每条规则含可见 [Source: 地址行', c?.text.split('[Source: ').length - 1 === 8);
+check('session-start 规则无 source 属性（路径仅在正文首行）', !c?.text.includes('source="'));
 check('session-start XML 外层标签', c?.text.startsWith('<rules-injection>'));
 check('session-start stderr 为空', r.stderr === '', r.stderr);
 
@@ -57,7 +58,7 @@ check('读 pom.xml 注入 toolchain 1 条（basename 匹配）', c?.rules.length
 r = run_hook('inject-rules.mjs', { session_id: sid, tool_name: 'Read', tool_input: { file_path: 'G:/x/src/Foo.java' } });
 c = parse_context(r.stdout);
 check('读 .java 注入剩余 2 条（toolchain 已注入被剔除）', c?.rules.length === 2 && !c.rules.includes('toolchain'), `rules=${c?.rules?.join(',')}`);
-check('PreToolUse 事件名与 trigger', c?.event === 'PreToolUse' && c.text.includes('trigger="Read"'));
+check('PreToolUse 事件名与外层标签', c?.event === 'PreToolUse' && c.text.startsWith('<rules-injection>'));
 
 r = run_hook('inject-rules.mjs', { session_id: sid, tool_name: 'Read', tool_input: { file_path: 'G:/x/src/Foo.java' } });
 check('同文件重复读不重注', r.stdout === '');
