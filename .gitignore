@@ -1,0 +1,7 @@
+# IDE
+.idea/
+.vscode/
+
+# 系统噪音
+Thumbs.db
+.DS_Store
