@@ -1,6 +1,6 @@
 {
-  "name": "no-cc-plugins",
-  "description": "本地插件市场：面向 ZCode 等 agent 的插件",
+  "name": "rules-injection",
+  "description": "rules-injection 插件市场",
   "plugins": [
     {
       "name": "rules-injection",
