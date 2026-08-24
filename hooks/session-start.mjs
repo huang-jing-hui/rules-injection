@@ -2,6 +2,7 @@
 // SessionStart hook：重置会话去重状态，并注入全局规则（无 paths 元数据的规则文件）。
 // matcher 为 startup|clear|compact，排除 resume——恢复的会话历史中已含注入内容。
 import {
+  RULES_DIR,
   read_stdin_json,
   scan_rules,
   reset_session,
@@ -20,6 +21,7 @@ try {
   const body = global_rules.map(rule_xml).join('\n\n');
   const context = `<rules-injection>
 Rules below are the user's personal coding rules. You MUST follow them throughout this session.
+Global rules directory: ${RULES_DIR}
 Additional rules will be injected automatically when you read, write, or edit matching files — follow those too.
 
 <global-rules>

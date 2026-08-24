@@ -204,10 +204,13 @@ function xml_escape(s) {
 }
 
 /**
- * 单条规则的 XML 包裹格式（全文注入，source 便于模型溯源规则出处）。
+ * 单条规则的 XML 包裹格式（全文注入）。
+ * 地址同时放在 source 属性和正文首行的 [Source: …]——部分客户端渲染上下文时会
+ * 隐藏 XML 标签/属性，正文里的可见行保证规则出处始终可见。
  */
 export function rule_xml(rule) {
-  return `<rule name="${xml_escape(rule.name)}" source="${xml_escape(rule.source)}">\n${rule.content}\n</rule>`;
+  const src = xml_escape(rule.source);
+  return `<rule name="${xml_escape(rule.name)}" source="${src}">\n[Source: ${src}]\n\n${rule.content}\n</rule>`;
 }
 
 /**

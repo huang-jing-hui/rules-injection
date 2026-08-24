@@ -28,12 +28,19 @@ glob 支持 `**`（跨目录）、`*`（单层）、`?`（单字符）；不含 
 
 ## 注入格式
 
-每条规则以 XML 标签包裹全文，`source` 标注规则文件出处：
+每条规则以 XML 标签包裹全文；规则文件的地址同时出现在 `source` 属性和正文首行的
+`[Source: …]`（部分客户端渲染上下文时会隐藏 XML 标签，可见行保证地址不丢）：
 
 ```xml
 <rules-injection>
+Rules below are the user's personal coding rules. You MUST follow them throughout this session.
+Global rules directory: C:\Users\xxx\.zcode\rules
+...
+
 <global-rules>
 <rule name="coding-style" source="C:\Users\xxx\.zcode\rules\common\coding-style.md">
+[Source: C:\Users\xxx\.zcode\rules\common\coding-style.md]
+
 规则正文全文
 </rule>
 </global-rules>
@@ -44,8 +51,11 @@ glob 支持 `**`（跨目录）、`*`（单层）、`?`（单字符）；不含 
 
 ```xml
 <rules-injection trigger="Read" file="G:\project\src\Foo.java">
-<rule name="java-coding-style" source="…">…</rule>
-<rule name="java-patterns" source="…">…</rule>
+<rule name="coding-style" source="…">
+[Source: …]
+
+…规则全文…
+</rule>
 </rules-injection>
 ```
 

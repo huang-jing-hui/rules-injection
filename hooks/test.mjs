@@ -44,6 +44,8 @@ let r = run_hook('session-start.mjs', { session_id: sid, source: 'startup' });
 let c = parse_context(r.stdout);
 check('session-start 注入 8 条全局规则', c?.event === 'SessionStart' && c.rules.length === 8, `rules=${c?.rules.length}`);
 check('session-start 含重要性声明', c?.text.includes('MUST follow them throughout this session'));
+check('session-start 前言含规则目录绝对路径', c?.text.includes(RULES_DIR));
+check('session-start 每条规则含可见 [Source: 地址行', c?.text.split('[Source: ').length - 1 === 8);
 check('session-start XML 外层标签', c?.text.startsWith('<rules-injection>'));
 check('session-start stderr 为空', r.stderr === '', r.stderr);
 
