@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-// 唯一规则来源目录（按设计决定：只读 ~/.zcode/rules，不读 ~/.claude/rules）
+// 用户级规则目录（~/.zcode/rules，不读 ~/.claude/rules）
 export const RULES_DIR = path.join(os.homedir(), '.zcode', 'rules');
 // 会话去重状态目录：记录每个会话已注入过的规则（规则文件级去重）
 export const STATE_DIR = path.join(
@@ -56,10 +56,10 @@ export function parse_rule(raw, source) {
 }
 
 /**
- * 递归扫描 RULES_DIR 下所有 .md 规则文件，按路径排序保证注入顺序稳定。
+ * 递归扫描规则目录下所有 .md 规则文件，按路径排序保证注入顺序稳定。
  */
-export function scan_rules() {
-  if (!fs.existsSync(RULES_DIR)) return [];
+export function scan_rules(rules_dir = RULES_DIR) {
+  if (!fs.existsSync(rules_dir)) return [];
   const rules = [];
   const walk = (dir) => {
     let entries;
@@ -83,9 +83,39 @@ export function scan_rules() {
       }
     }
   };
-  walk(RULES_DIR);
+  walk(rules_dir);
   rules.sort((a, b) => a.source.localeCompare(b.source));
   return rules;
+}
+
+/**
+ * 项目级规则目录：<项目>/.zcode/rules（项目目录优先取 ZCODE_PROJECT_DIR/
+ * CLAUDE_PROJECT_DIR 环境变量，缺失时回退 hook 输入的 cwd）。
+ * 目录存在才返回路径，否则返回 null；恰好等于用户级目录时视为无项目规则，
+ * 避免同一目录被扫描两次导致重复注入。
+ */
+export function project_rules_dir(input) {
+  const project = process.env.ZCODE_PROJECT_DIR
+    || process.env.CLAUDE_PROJECT_DIR
+    || input?.cwd;
+  if (!project) return null;
+  const dir = path.join(project, '.zcode', 'rules');
+  try {
+    if (!fs.existsSync(dir)) return null;
+    if (norm_file_key(dir) === norm_file_key(RULES_DIR)) return null;
+    return dir;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 合并用户级 + 项目级规则（项目级排后：更具体的规则在注入块中更靠后）。
+ * 两来源按各自绝对路径天然不冲突，规则级去重键（source 路径）跨来源一致。
+ */
+export function collect_rules(input) {
+  const project_dir = project_rules_dir(input);
+  return [...scan_rules(), ...(project_dir ? scan_rules(project_dir) : [])];
 }
 
 /**

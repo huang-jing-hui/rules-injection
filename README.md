@@ -1,13 +1,20 @@
 # rules-injection
 
-ZCode 插件：通过 hooks 自动注入个人规则。
+ZCode 插件：通过 hooks 自动注入个人规则（用户级 + 项目级）。
 
 - **SessionStart**（`startup|clear|compact`）：注入全局规则 + 遵循规则的重要性声明
 - **PreToolUse**（`Read|Write|Edit`）：按被操作文件路径匹配规则的 `paths` glob，注入匹配到的规则全文
 
 ## 规则目录与格式
 
-规则唯一来源：`~/.zcode/rules/`（递归扫描所有 `.md` 文件，子目录结构不影响行为）。
+两级规则来源（格式完全相同，递归扫描所有 `.md` 文件，子目录结构不影响行为）：
+
+| 级别 | 目录 | 说明 |
+|---|---|---|
+| 用户级 | `~/.zcode/rules/` | 对所有项目生效 |
+| 项目级 | `<项目>/.zcode/rules/` | 仅在该项目会话中生效；项目目录取自 `ZCODE_PROJECT_DIR` 环境变量或 hook 输入的 `cwd` |
+
+项目级规则在注入块中排在用户级之后（更具体的规则更靠后）；两级按各自绝对路径天然不冲突，同名规则不互相覆盖（都会注入）。
 
 **元数据语义**：只看 frontmatter，与文件所在目录无关。
 
@@ -28,17 +35,18 @@ glob 支持 `**`（跨目录）、`*`（单层）、`?`（单字符）；不含 
 
 ## 注入格式
 
-每条规则以 XML 标签包裹全文；规则文件的地址同时出现在 `source` 属性和正文首行的
-`[Source: …]`（部分客户端渲染上下文时会隐藏 XML 标签，可见行保证地址不丢）：
+每条规则以 XML 标签包裹全文，正文首行带可见的 `[Source: …]` 地址行（部分客户端渲染
+上下文时会隐藏 XML 标签，可见行保证规则出处不丢）：
 
 ```xml
 <rules-injection>
 Rules below are the user's personal coding rules. You MUST follow them throughout this session.
 Global rules directory: C:\Users\xxx\.zcode\rules
+Project rules directory: G:\myproject\.zcode\rules
 ...
 
 <global-rules>
-<rule name="coding-style" source="C:\Users\xxx\.zcode\rules\common\coding-style.md">
+<rule name="coding-style">
 [Source: C:\Users\xxx\.zcode\rules\common\coding-style.md]
 
 规则正文全文
@@ -50,8 +58,10 @@ Global rules directory: C:\Users\xxx\.zcode\rules
 按需注入（PreToolUse）形如：
 
 ```xml
-<rules-injection trigger="Read" file="G:\project\src\Foo.java">
-<rule name="coding-style" source="…">
+<rules-injection>
+The following rules apply to this file (matched via paths globs). Follow them when working on it.
+
+<rule name="coding-style">
 [Source: …]
 
 …规则全文…

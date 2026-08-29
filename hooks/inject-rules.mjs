@@ -4,9 +4,10 @@
 // 避免同语言多个文件重复注入同一批规则导致上下文膨胀。
 import {
   RULES_DIR,
+  project_rules_dir,
   norm_file_key,
   read_stdin_json,
-  scan_rules,
+  collect_rules,
   path_matches,
   injected_rules,
   mark_rules_injected,
@@ -18,10 +19,14 @@ try {
   const input = await read_stdin_json();
   const file_path = input?.tool_input?.file_path;
   if (!file_path || !input.session_id) process.exit(0);
-  // 规则目录自身的文件跳过：读规则文件不触发规则注入，避免元数据噪音
-  if (norm_file_key(file_path).startsWith(`${norm_file_key(RULES_DIR)}/`)) process.exit(0);
+  // 规则目录自身的文件跳过（用户级与项目级）：读规则文件不触发规则注入，避免元数据噪音
+  const rules_dir_keys = [RULES_DIR, project_rules_dir(input)]
+    .filter(Boolean)
+    .map((d) => `${norm_file_key(d)}/`);
+  const file_key = norm_file_key(file_path);
+  if (rules_dir_keys.some((k) => file_key.startsWith(k))) process.exit(0);
 
-  const matched = scan_rules()
+  const matched = collect_rules(input)
     .filter((r) => r.paths?.some((p) => path_matches(p, file_path)));
   // 最常见路径：文件不匹配任何规则，快速退出
   if (matched.length === 0) process.exit(0);
