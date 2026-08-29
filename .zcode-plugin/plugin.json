@@ -1,5 +1,5 @@
 {
   "name": "rules-injection",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "注入个人规则（用户级 ~/.zcode/rules + 项目级 <项目>/.zcode/rules）：会话开始注入全局规则，Read/Write/Edit 时按 paths glob 注入匹配规则"
 }

@@ -137,6 +137,27 @@ r = run_hook('session-start.mjs', { session_id: sid3, source: 'startup' }, { ZCO
 c = parse_context(r.stdout);
 check('ZCODE_PROJECT_DIR 环境变量指定项目目录生效', c?.rules.length === global_rules.length + 1, `rules=${c?.rules?.length}`);
 
+// 回退：项目只有 .claude/rules（无 .zcode）
+const proj_claude = fs.mkdtempSync(path.join(os.tmpdir(), 'zcode-proj-claude-'));
+const claude_rules = path.join(proj_claude, '.claude', 'rules');
+fs.mkdirSync(claude_rules, { recursive: true });
+fs.writeFileSync(path.join(claude_rules, 'legacy-rule.md'), '# Legacy\n\n仅 .claude/rules 的项目规则（测试夹具）');
+r = run_hook('session-start.mjs', { session_id: sid3, source: 'startup', cwd: proj_claude });
+c = parse_context(r.stdout);
+check('.zcode 缺失时回退 .claude/rules', c?.rules.length === global_rules.length + 1 && c?.text.includes(`Project rules directory: ${claude_rules}`), `rules=${c?.rules?.length}`);
+fs.rmSync(proj_claude, { recursive: true, force: true });
+
+// 两者并存时 .zcode 优先（.claude 不生效）
+const proj_both = fs.mkdtempSync(path.join(os.tmpdir(), 'zcode-proj-both-'));
+fs.mkdirSync(path.join(proj_both, '.zcode', 'rules'), { recursive: true });
+fs.mkdirSync(path.join(proj_both, '.claude', 'rules'), { recursive: true });
+fs.writeFileSync(path.join(proj_both, '.zcode', 'rules', 'zcode-rule.md'), '# Z\n\nzcode 优先（测试夹具）');
+fs.writeFileSync(path.join(proj_both, '.claude', 'rules', 'claude-rule.md'), '# C\n\nclaude 回退（测试夹具）');
+r = run_hook('session-start.mjs', { session_id: sid3, source: 'startup', cwd: proj_both });
+c = parse_context(r.stdout);
+check('两者并存时 .zcode 优先', c?.rules.length === global_rules.length + 1 && c?.text.includes('zcode-rule') && !c?.text.includes('claude-rule'), `rules=${c?.rules?.length}`);
+fs.rmSync(proj_both, { recursive: true, force: true });
+
 fs.rmSync(proj, { recursive: true, force: true });
 fs.rmSync(plain_dir, { recursive: true, force: true });
 

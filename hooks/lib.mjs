@@ -89,9 +89,10 @@ export function scan_rules(rules_dir = RULES_DIR) {
 }
 
 /**
- * 项目级规则目录：<项目>/.zcode/rules（项目目录优先取 ZCODE_PROJECT_DIR/
- * CLAUDE_PROJECT_DIR 环境变量，缺失时回退 hook 输入的 cwd）。
- * 目录存在才返回路径，否则返回 null；恰好等于用户级目录时视为无项目规则，
+ * 项目级规则目录：优先 <项目>/.zcode/rules，不存在时回退 <项目>/.claude/rules
+ * （兼容已有 Claude Code 项目规则的仓库）。按优先级取第一个存在的目录；
+ * 全部不存在返回 null。项目目录优先取 ZCODE_PROJECT_DIR/CLAUDE_PROJECT_DIR
+ * 环境变量，缺失时回退 hook 输入的 cwd。候选目录恰好等于用户级目录时跳过，
  * 避免同一目录被扫描两次导致重复注入。
  */
 export function project_rules_dir(input) {
@@ -99,11 +100,14 @@ export function project_rules_dir(input) {
     || process.env.CLAUDE_PROJECT_DIR
     || input?.cwd;
   if (!project) return null;
-  const dir = path.join(project, '.zcode', 'rules');
   try {
-    if (!fs.existsSync(dir)) return null;
-    if (norm_file_key(dir) === norm_file_key(RULES_DIR)) return null;
-    return dir;
+    for (const name of ['.zcode', '.claude']) {
+      const dir = path.join(project, name, 'rules');
+      if (!fs.existsSync(dir)) continue;
+      if (norm_file_key(dir) === norm_file_key(RULES_DIR)) continue;
+      return dir;
+    }
+    return null;
   } catch {
     return null;
   }
