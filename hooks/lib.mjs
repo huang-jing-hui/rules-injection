@@ -89,16 +89,24 @@ export function scan_rules(rules_dir = RULES_DIR) {
 }
 
 /**
+ * 会话项目目录：优先 ZCODE_PROJECT_DIR/CLAUDE_PROJECT_DIR 环境变量，
+ * 回退 hook 输入的 cwd。作为相对 glob 的匹配基准。
+ */
+export function session_project_dir(input) {
+  return process.env.ZCODE_PROJECT_DIR
+    || process.env.CLAUDE_PROJECT_DIR
+    || input?.cwd
+    || null;
+}
+
+/**
  * 项目级规则目录：优先 <项目>/.zcode/rules，不存在时回退 <项目>/.claude/rules
  * （兼容已有 Claude Code 项目规则的仓库）。按优先级取第一个存在的目录；
- * 全部不存在返回 null。项目目录优先取 ZCODE_PROJECT_DIR/CLAUDE_PROJECT_DIR
- * 环境变量，缺失时回退 hook 输入的 cwd。候选目录恰好等于用户级目录时跳过，
+ * 全部不存在返回 null。候选目录恰好等于用户级目录时跳过，
  * 避免同一目录被扫描两次导致重复注入。
  */
 export function project_rules_dir(input) {
-  const project = process.env.ZCODE_PROJECT_DIR
-    || process.env.CLAUDE_PROJECT_DIR
-    || input?.cwd;
+  const project = session_project_dir(input);
   if (!project) return null;
   try {
     for (const name of ['.zcode', '.claude']) {
@@ -122,12 +130,11 @@ export function collect_rules(input) {
   return [...scan_rules(), ...(project_dir ? scan_rules(project_dir) : [])];
 }
 
-/**
- * glob 模式是否匹配给定文件路径。
- * 支持 **（跨目录）、*（单层）、?（单字符）；无斜杠的模式只匹配文件名（如 pom.xml）。
- * Windows 文件系统大小写不敏感，故匹配一律忽略大小写。
- */
-export function path_matches(pattern, file_path) {
+// glob 模式是否匹配给定文件路径。
+// 支持 **（跨目录）、*（单层）、?（单字符）；无斜杠的模式只匹配文件名（如 pom.xml）。
+// 提供 base_dir（会话项目目录）时，含 / 的相对模式（如 src/test/**/*.java）会额外
+// 以文件相对该目录的路径参与匹配。Windows 文件系统大小写不敏感，匹配一律忽略大小写。
+export function path_matches(pattern, file_path, base_dir) {
   const normalized = file_path.replace(/\\/g, '/');
   const p = pattern.replace(/\\/g, '/');
   let re = '';
@@ -135,8 +142,15 @@ export function path_matches(pattern, file_path) {
     const c = p[i];
     if (c === '*') {
       if (p[i + 1] === '*') {
-        re += '.*';
-        i++;
+        if (p[i + 2] === '/') {
+          // "**/" 采用 gitignore 语义：可匹配零层目录，src/test/**/*.java
+          // 同时命中 src/test/FooTest.java 与 src/test/sub/FooTest.java
+          re += '(?:.*/)?';
+          i += 2;
+        } else {
+          re += '.*';
+          i++;
+        }
       } else {
         re += '[^/]*';
       }
@@ -148,9 +162,14 @@ export function path_matches(pattern, file_path) {
   }
   const regex = new RegExp(`^${re}$`, 'i');
   // 无斜杠模式（pom.xml、build.gradle）只对 basename 匹配
-  return p.includes('/')
-    ? regex.test(normalized)
-    : regex.test(normalized.split('/').pop());
+  if (!p.includes('/')) return regex.test(normalized.split('/').pop());
+  if (regex.test(normalized)) return true;
+  // 相对模式：以项目目录为基准换算相对路径再匹配；项目外文件（../ 开头）不参与
+  if (base_dir) {
+    const rel = path.relative(base_dir, file_path).replace(/\\/g, '/');
+    if (!rel.startsWith('..') && regex.test(rel)) return true;
+  }
+  return false;
 }
 
 /**

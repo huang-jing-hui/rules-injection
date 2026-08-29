@@ -44,7 +44,10 @@ const match_for = (fp) => all_rules.filter((r) => r.paths?.some((p) => path_matc
 const sid = `testrun-${Date.now()}`;
 const sid2 = `${sid}-b`;
 const sid3 = `${sid}-c`;
-for (const s of [sid, sid2, sid3]) fs.rmSync(path.join(state_dir, `${s}.json`), { force: true });
+const sid4 = `${sid}-d`;
+const sid5 = `${sid}-e`;
+const sid6 = `${sid}-f`;
+for (const s of [sid, sid2, sid3, sid4, sid5, sid6]) fs.rmSync(path.join(state_dir, `${s}.json`), { force: true });
 
 // --- session-start（无项目上下文：仅用户级全局规则）---
 let r = run_hook('session-start.mjs', { session_id: sid, source: 'startup' });
@@ -158,6 +161,21 @@ c = parse_context(r.stdout);
 check('两者并存时 .zcode 优先', c?.rules.length === global_rules.length + 1 && c?.text.includes('zcode-rule') && !c?.text.includes('claude-rule'), `rules=${c?.rules?.length}`);
 fs.rmSync(proj_both, { recursive: true, force: true });
 
+// 相对 glob（以会话项目目录为基准解析）
+fs.writeFileSync(path.join(proj_rules, 'proj-relative.md'), '---\npaths:\n  - "src/test/**/*.java"\n---\n\n# Proj Relative\n\n相对路径 glob 规则（测试夹具）');
+
+r = run_hook('inject-rules.mjs', { session_id: sid4, tool_name: 'Read', tool_input: { file_path: path.join(proj, 'src', 'test', 'FooTest.java') }, cwd: proj });
+c = parse_context(r.stdout);
+check('项目相对 glob 匹配项目内 src/test 文件', c?.rules.length === foo_match.length + 2 && c.rules.includes('proj-relative'), `rules=${c?.rules?.length}/期望${foo_match.length + 2}`);
+
+r = run_hook('inject-rules.mjs', { session_id: sid5, tool_name: 'Read', tool_input: { file_path: path.join(proj, 'src', 'main', 'Bar.java') }, cwd: proj });
+c = parse_context(r.stdout);
+check('项目相对 glob 不匹配 src/main 文件', c?.rules.length === foo_match.length + 1 && !c.rules.includes('proj-relative'), `rules=${c?.rules?.length}`);
+
+r = run_hook('inject-rules.mjs', { session_id: sid6, tool_name: 'Read', tool_input: { file_path: 'G:/x/Out.java' }, cwd: proj });
+c = parse_context(r.stdout);
+check('项目相对 glob 不匹配项目外文件', c?.rules.length === foo_match.length + 1 && !c.rules.includes('proj-relative'), `rules=${c?.rules?.length}`);
+
 fs.rmSync(proj, { recursive: true, force: true });
 fs.rmSync(plain_dir, { recursive: true, force: true });
 
@@ -169,7 +187,7 @@ r = run_hook('inject-rules.mjs', { session_id: sid, tool_name: 'Read', tool_inpu
 c = parse_context(r.stdout);
 check('clear 重置后 java 规则全部重新注入', c?.rules.length === foo_match.length, `rules=${c?.rules?.length}/期望${foo_match.length}`);
 
-for (const s of [sid, sid2, sid3]) fs.rmSync(path.join(state_dir, `${s}.json`), { force: true });
+for (const s of [sid, sid2, sid3, sid4, sid5, sid6]) fs.rmSync(path.join(state_dir, `${s}.json`), { force: true });
 
 const failed = results.filter((x) => !x).length;
 console.log(failed === 0 ? `\nALL PASS (${results.length}/${results.length})` : `\n${failed} FAILED / ${results.length}`);

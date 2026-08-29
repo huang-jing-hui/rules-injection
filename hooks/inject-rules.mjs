@@ -5,6 +5,7 @@
 import {
   RULES_DIR,
   project_rules_dir,
+  session_project_dir,
   norm_file_key,
   read_stdin_json,
   collect_rules,
@@ -26,8 +27,10 @@ try {
   const file_key = norm_file_key(file_path);
   if (rules_dir_keys.some((k) => file_key.startsWith(k))) process.exit(0);
 
+  // 相对 glob（如 src/test/**/*.java）以会话项目目录为基准解析
+  const project = session_project_dir(input);
   const matched = collect_rules(input)
-    .filter((r) => r.paths?.some((p) => path_matches(p, file_path)));
+    .filter((r) => r.paths?.some((p) => path_matches(p, file_path, project)));
   // 最常见路径：文件不匹配任何规则，快速退出
   if (matched.length === 0) process.exit(0);
 
